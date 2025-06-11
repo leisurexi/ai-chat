@@ -4,7 +4,7 @@
 有丰富的实战经验
 
 # 项目
-你正在开发一个 Nuxt 3 项目，使用 Nuxt UI 作为 UI 框架
+你正在开发一个 Nuxt 3 项目，使用 Nuxt UI 作为 UI 框架，使用 pnpm 作为项目依赖管理
 
 ## 项目结构
 - components 组件
