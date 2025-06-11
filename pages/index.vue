@@ -1,101 +1,214 @@
 <template>
   <div class="flex h-screen bg-gray-50">
     <!-- 左侧边栏 -->
-    <div class="w-72 border-r border-gray-200 bg-white p-4 shadow-sm">
-      <UButton
-        block
-        color="primary"
-        variant="solid"
-        class="mb-6 transition-all hover:shadow-md"
-        @click="startNewChat"
-      >
-        <template #leading>
-          <UIcon name="i-heroicons-plus" class="text-lg" />
-        </template>
-        新对话
-      </UButton>
+    <div class="w-72 border-r border-gray-200 bg-white p-4 shadow-sm flex flex-col h-full">
+      <div class="flex-1">
+        <UButton block color="primary" variant="solid" class="mb-6 transition-all hover:shadow-md"
+          @click="startNewChat">
+          <template #leading>
+            <UIcon name="i-heroicons-plus" class="text-lg" />
+          </template>
+          新对话
+        </UButton>
 
-      <!-- 对话历史列表 -->
-      <div class="space-y-2">
-        <div
-          v-for="chat in chatHistory"
-          :key="chat._id"
-          class="group flex items-center gap-3 rounded-lg p-3 transition-all hover:bg-gray-50 cursor-pointer chat-item"
-          :class="{ 'bg-primary-50': currentChatId === chat._id }"
-          @click="selectChat(chat._id)"
-        >
-          <UIcon 
-            name="i-heroicons-chat-bubble-left-right" 
-            class="text-gray-400 group-hover:text-primary-500 transition-colors" 
-          />
-          <template v-if="editingChatId === chat._id">
-            <UInput
-              v-model="editingTitle"
-              size="xs"
-              class="flex-1"
-              @keyup.enter="saveTitle(chat._id)"
-              @keyup.esc="cancelEdit"
-              @blur="saveTitle(chat._id)"
-              ref="titleInput"
-            />
-          </template>
-          <template v-else>
-            <span class="truncate text-sm text-gray-600 group-hover:text-gray-900 transition-colors flex-1">
-              {{ chat.title }}
-            </span>
-          </template>
-          <div class="flex items-center gap-1">
-            <template v-if="editingChatId !== chat._id">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="text-gray-400 hover:text-primary-500"
-                @click.stop="startEdit(chat._id, chat.title)"
-              >
-                <UIcon name="i-heroicons-pencil-square" />
-              </UButton>
+        <!-- 对话历史列表 -->
+        <div class="space-y-2">
+          <div v-for="chat in chatHistory" :key="chat._id"
+            class="group flex items-center gap-3 rounded-lg p-3 transition-all hover:bg-gray-50 cursor-pointer chat-item"
+            :class="{ 'bg-primary-50': currentChatId === chat._id }" @click="selectChat(chat._id)">
+            <UIcon name="i-heroicons-chat-bubble-left-right"
+              class="text-gray-400 group-hover:text-primary-500 transition-colors" />
+            <template v-if="editingChatId === chat._id">
+              <UInput ref="titleInput" v-model="editingTitle" size="xs" class="flex-1"
+                @keyup.enter="saveTitle(chat._id)" @keyup.esc="cancelEdit" @blur="saveTitle(chat._id)" />
             </template>
-            <UButton
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              class="text-gray-400 hover:text-red-500 delete-btn"
-              @click.stop="deleteChat(chat._id)"
-            >
-              <UIcon name="i-heroicons-trash" />
-            </UButton>
+            <template v-else>
+              <span class="truncate text-sm text-gray-600 group-hover:text-gray-900 transition-colors flex-1">
+                {{ chat.title }}
+              </span>
+            </template>
+            <div class="flex items-center gap-1">
+              <template v-if="editingChatId !== chat._id">
+                <UButton color="neutral" variant="ghost" size="xs" class="text-gray-400 hover:text-primary-500 edit-btn"
+                  @click.stop="startEdit(chat._id, chat.title, $event)">
+                  <UIcon name="i-heroicons-pencil-square" />
+                </UButton>
+              </template>
+              <UButton color="neutral" variant="ghost" size="xs" class="text-gray-400 hover:text-red-500 delete-btn"
+                @click.stop="deleteChat(chat._id)">
+                <UIcon name="i-heroicons-trash" />
+              </UButton>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- 底部用户区域 -->
+      <div class="border-t border-gray-200 pt-4 mt-4">
+        <template v-if="user">
+          <div class="flex items-center gap-3 p-2">
+            <UAvatar :src="user.avatar" :alt="user.email" size="sm" />
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900 truncate">{{ user.email }}</p>
+            </div>
+            <UButton color="secondary" variant="ghost" size="xs" @click="handleLogout">
+              退出
+            </UButton>
+          </div>
+        </template>
+        <template v-else>
+          <div class="space-y-2">
+            <UButton block color="primary" variant="solid" @click="showLoginModal = true">
+              登录
+            </UButton>
+            <UButton block color="secondary" variant="soft" @click="showRegisterModal = true">
+              注册
+            </UButton>
+          </div>
+        </template>
+      </div>
     </div>
+
+    <!-- 登录模态框 -->
+    <UModal :open="showLoginModal" :ui="{ 
+      wrapper: 'relative flex flex-col w-full max-w-lg mx-auto transition-all duration-300 ease-in-out rounded-xl shadow-lg bg-white border-0',
+      overlay: 'fixed inset-0 bg-gray-900/75 backdrop-blur-sm transition-opacity duration-300'
+    }">
+      
+        <template #header>
+          <div class="flex items-center justify-between w-full px-3 py-2">
+            <h3 class="text-xl font-semibold text-gray-900">登录</h3>
+            <UButton color="primary" variant="ghost" icon="i-heroicons-x-mark" @click="showLoginModal = false" />
+          </div>
+        </template>
+
+        <template #body>
+          <form class="space-y-4 px-3 py-2" @submit.prevent="handleLogin">
+            <UFormField label="邮箱" class="space-y-1">
+              <UInput 
+                v-model="loginForm.email" 
+                type="email" 
+                placeholder="请输入邮箱" 
+                required 
+                class="w-full"
+                :ui="{ 
+                  base: 'relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:ring-inset dark:focus:ring-inset dark:border-gray-700 dark:text-gray-400 dark:bg-gray-800 sm:text-sm sm:leading-6'
+                }"
+              />
+            </UFormField>
+            <UFormField label="密码" class="space-y-1">
+              <UInput 
+                v-model="loginForm.password" 
+                type="password" 
+                placeholder="请输入密码" 
+                required 
+                class="w-full"
+                :ui="{ 
+                  base: 'relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:ring-inset dark:focus:ring-inset dark:border-gray-700 dark:text-gray-400 dark:bg-gray-800 sm:text-sm sm:leading-6'
+                }"
+              />
+            </UFormField>
+          </form>
+        </template>
+
+        <template #footer>
+          <div class="flex items-center justify-end w-full gap-3 px-3 py-2">
+            <UButton 
+              type="submit" 
+              color="primary" 
+              :loading="isLoggingIn"
+              class="px-4 py-1.5 text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors duration-200"
+            >
+              登录
+            </UButton>
+          </div>
+        </template>
+      
+    </UModal>
+
+    <!-- 注册模态框 -->
+    <UModal :open="showRegisterModal" :ui="{ 
+      wrapper: 'relative flex flex-col w-full max-w-lg mx-auto transition-all duration-300 ease-in-out rounded-xl shadow-lg bg-white border-0',
+      overlay: 'fixed inset-0 bg-gray-900/75 backdrop-blur-sm transition-opacity duration-300'
+    }">
+      
+        <template #header>
+          <div class="flex items-center justify-between w-full px-3 py-2">
+            <h3 class="text-xl font-semibold text-gray-900">注册</h3>
+            <UButton color="primary" variant="ghost" icon="i-heroicons-x-mark" @click="showRegisterModal = false" />
+          </div>
+        </template>
+
+        <template #body>
+          <form class="space-y-4 px-3 py-2" @submit.prevent="handleRegister">
+            <UFormField label="邮箱" class="space-y-1">
+              <UInput 
+                v-model="registerForm.email" 
+                type="email" 
+                placeholder="请输入邮箱" 
+                required 
+                class="w-full"
+                :ui="{ 
+                  base: 'relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:ring-inset dark:focus:ring-inset dark:border-gray-700 dark:text-gray-400 dark:bg-gray-800 sm:text-sm sm:leading-6'
+                }"
+              />
+            </UFormField>
+            <UFormField label="密码" class="space-y-1">
+              <UInput 
+                v-model="registerForm.password" 
+                type="password" 
+                placeholder="请输入密码" 
+                required 
+                class="w-full"
+                :ui="{ 
+                  base: 'relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:ring-inset dark:focus:ring-inset dark:border-gray-700 dark:text-gray-400 dark:bg-gray-800 sm:text-sm sm:leading-6'
+                }"
+              />
+            </UFormField>
+            <UFormField label="确认密码" class="space-y-1">
+              <UInput 
+                v-model="registerForm.confirmPassword" 
+                type="password" 
+                placeholder="请再次输入密码" 
+                required 
+                class="w-full"
+                :ui="{ 
+                  base: 'relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:ring-inset dark:focus:ring-inset dark:border-gray-700 dark:text-gray-400 dark:bg-gray-800 sm:text-sm sm:leading-6'
+                }"
+              />
+            </UFormField>
+          </form>
+        </template>
+
+        <template #footer>
+          <div class="flex items-center justify-end w-full gap-3 px-3 py-2">
+            <UButton 
+              type="submit" 
+              color="primary" 
+              :loading="isRegistering"
+              class="px-4 py-1.5 text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors duration-200"
+            >
+              注册
+            </UButton>
+          </div>
+        </template>
+      
+    </UModal>
 
     <!-- 主对话区域 -->
     <div class="flex-1 flex flex-col bg-white">
       <!-- 对话内容 -->
-      <div 
-        ref="chatContainer"
-        class="flex-1 overflow-y-auto p-6 space-y-6"
-      >
+      <div ref="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-6">
         <template v-if="currentChat">
-          <div
-            v-for="message in currentChat.messages"
-            :key="message.id"
-            class="flex gap-4 animate-fade-in"
-            :class="{ 'justify-end': message.role === 'user' }"
-          >
-            <div
-              class="max-w-[80%] rounded-2xl p-4 shadow-sm transition-all"
-              :class="{
-                'bg-primary-50 hover:shadow-md': message.role === 'assistant',
-                'bg-gray-100 hover:shadow-md': message.role === 'user'
-              }"
-            >
+          <div v-for="message in currentChat.messages" :key="message.id" class="flex gap-4 animate-fade-in"
+            :class="{ 'justify-end': message.role === 'user' }">
+            <div class="max-w-[80%] rounded-2xl p-4 shadow-sm transition-all" :class="{
+              'bg-primary-50 hover:shadow-md': message.role === 'assistant',
+              'bg-gray-100 hover:shadow-md': message.role === 'user'
+            }">
               <div class="flex items-center gap-2 mb-2">
-                <UIcon
-                  :name="message.role === 'assistant' ? 'i-heroicons-sparkles' : 'i-heroicons-user'"
-                  class="text-primary-500"
-                />
+                <UIcon :name="message.role === 'assistant' ? 'i-heroicons-sparkles' : 'i-heroicons-user'"
+                  class="text-primary-500" />
                 <span class="text-sm font-medium text-gray-700">
                   {{ message.role === 'assistant' ? 'AI 助手' : '我' }}
                 </span>
@@ -136,28 +249,13 @@
       <!-- 输入区域 -->
       <div class="border-t border-gray-200 bg-white p-4 shadow-lg">
         <form class="flex gap-3" @submit.prevent>
-          <UTextarea
-            v-model="newMessage"
-            placeholder="输入消息... (Enter 发送，Shift + Enter 换行)"
-            class="flex-1 resize-none min-h-[44px] max-h-[200px] overflow-y-auto"
-            :disabled="isLoading"
-            :rows="1"
-            :auto-rows="true"
-            :ui="{
+          <UTextarea v-model="newMessage" placeholder="输入消息... (Enter 发送，Shift + Enter 换行)"
+            class="flex-1 resize-none min-h-[44px] max-h-[200px] overflow-y-auto" :disabled="isLoading" :rows="1"
+            :auto-rows="true" :ui="{
               base: 'relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:ring-inset dark:focus:ring-inset dark:border-gray-700 dark:text-gray-400 dark:bg-gray-800 sm:text-sm sm:leading-6'
-            }"
-            @keydown.enter.prevent="handleEnterKey"
-            @input="adjustTextareaHeight"
-          />
-          <UButton
-            type="button"
-            color="primary"
-            :loading="isLoading"
-            :disabled="!newMessage.trim()"
-            size="lg"
-            class="transition-all hover:shadow-md"
-            @click="sendMessage"
-          >
+            }" @keydown.enter.prevent="handleEnterKey" @input="adjustTextareaHeight" />
+          <UButton type="button" color="primary" :loading="isLoading" :disabled="!newMessage.trim()" size="lg"
+            class="transition-all hover:shadow-md" @click="sendMessage">
             <template #leading>
               <UIcon name="i-heroicons-paper-airplane" class="text-lg" />
             </template>
@@ -203,6 +301,29 @@ interface ChatsResponse {
   error?: string
 }
 
+interface User {
+  id: string
+  email: string
+  avatar?: string
+}
+
+interface LoginForm {
+  email: string
+  password: string
+}
+
+interface RegisterForm {
+  email: string
+  password: string
+  confirmPassword: string
+}
+
+interface AuthResponse {
+  success: boolean
+  user: User
+  error?: string
+}
+
 const chatHistory = ref<Chat[]>([])
 const currentChatId = ref<string | null>(null)
 const newMessage = ref('')
@@ -212,6 +333,24 @@ const chatContainer = ref<HTMLElement | null>(null)
 
 // 从 localStorage 获取或生成新的 userId
 const userId = ref('')
+
+// 用户相关
+const user = ref<User | null>(null)
+const showLoginModal = ref(false)
+const showRegisterModal = ref(false)
+const isLoggingIn = ref(false)
+const isRegistering = ref(false)
+
+const loginForm = ref<LoginForm>({
+  email: '',
+  password: ''
+})
+
+const registerForm = ref<RegisterForm>({
+  email: '',
+  password: '',
+  confirmPassword: ''
+})
 
 // 确保 userId 被保存到 localStorage
 onMounted(async () => {
@@ -231,6 +370,7 @@ onMounted(async () => {
     // 聚焦到输入框
     messageInput.value?.focus()
   }
+  await checkAuth()
 })
 
 const currentChat = computed(() => {
@@ -244,11 +384,11 @@ async function fetchChats() {
     return
   }
   try {
-    const { data } = await useFetch<ChatsResponse>('/api/chats', {
+    const response = await $fetch<ChatsResponse>('/api/chats', {
       query: { userId: userId.value }
     })
-    if (data.value?.success && data.value.data) {
-      chatHistory.value = data.value.data
+    if (response?.success && response?.data) {
+      chatHistory.value = response.data
       // 如果没有选中的对话，自动选中第一个
       if (!currentChatId.value && chatHistory.value.length > 0) {
         currentChatId.value = chatHistory.value[0]._id
@@ -263,13 +403,13 @@ async function fetchChats() {
 async function startNewChat() {
   if (!userId.value) return
   try {
-    const { data } = await useFetch<ChatResponse>('/api/chats/create', {
+    const response = await $fetch<ChatResponse>('/api/chats/create', {
       method: 'POST',
       body: { userId: userId.value }
     })
     
-    if (data.value?.success && data.value.data) {
-      const newChat = data.value.data
+    if (response?.success && response?.data) {
+      const newChat = response.data
       chatHistory.value.unshift(newChat)
       currentChatId.value = newChat._id
       // 聚焦到输入框
@@ -295,14 +435,14 @@ function selectChat(chatId: string) {
 async function updateChat(chatId: string, messages: Message[]) {
   if (!userId.value) return false
   try {
-    const { data } = await useFetch(`/api/chats/${chatId}`, {
+    const response = await $fetch<ChatResponse>(`/api/chats/${chatId}`, {
       method: 'PUT',
       body: {
         userId: userId.value,
         messages
       }
     })
-    return data.value?.success
+    return response?.success
   } catch (error) {
     console.error('更新对话失败:', error)
     return false
@@ -387,7 +527,7 @@ async function sendMessage() {
     // 监听消息
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data)
-      
+
       if (data.error) {
         console.error('Stream error:', data.error)
         eventSource.close()
@@ -441,7 +581,7 @@ async function sendMessage() {
       console.error('SSE Error:', error)
       eventSource.close()
       isLoading.value = false
-      
+
       // 显示错误消息
       if (currentChat) {
         const errorMessage: Message = {
@@ -453,7 +593,7 @@ async function sendMessage() {
         currentChat.messages.push(errorMessage)
         updateChat(currentChat._id, currentChat.messages)
       }
-      
+
       // 聚焦到输入框
       nextTick(() => {
         messageInput.value?.focus()
@@ -462,7 +602,7 @@ async function sendMessage() {
   } catch (error) {
     console.error('发送消息失败:', error)
     isLoading.value = false
-    
+
     // 显示错误消息
     if (currentChat) {
       const errorMessage: Message = {
@@ -474,7 +614,7 @@ async function sendMessage() {
       currentChat.messages.push(errorMessage)
       await updateChat(currentChat._id, currentChat.messages)
     }
-    
+
     // 聚焦到输入框
     nextTick(() => {
       messageInput.value?.focus()
@@ -494,12 +634,12 @@ function adjustTextareaHeight(event: Event) {
 async function deleteChat(chatId: string) {
   if (!userId.value) return
   try {
-    const { data } = await useFetch(`/api/chats/${chatId}`, {
+    const response = await $fetch<ChatResponse>(`/api/chats/${chatId}`, {
       method: 'DELETE',
       body: { userId: userId.value }
     })
     
-    if (data.value?.success) {
+    if (response?.success) {
       // 从列表中移除对话
       chatHistory.value = chatHistory.value.filter(chat => chat._id !== chatId)
       // 如果删除的是当前选中的对话，则选中第一个对话
@@ -524,37 +664,46 @@ function scrollToBottom() {
 // 编辑标题相关
 const editingChatId = ref<string | null>(null)
 const editingTitle = ref('')
-const titleInput = ref<HTMLInputElement | null>(null)
+const titleInput = ref<{ $el: HTMLElement } | null>(null)
+
+// 处理点击外部事件
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  const chatItem = target.closest('.chat-item')
+  const titleInput = target.closest('input')
+  const editButton = target.closest('.edit-btn')
+  const deleteButton = target.closest('.delete-btn')
+
+  // 如果点击的不是聊天项、输入框、编辑按钮或删除按钮，则取消编辑
+  if (!chatItem || (!titleInput && !editButton && !deleteButton)) {
+    cancelEdit()
+  }
+}
 
 // 开始编辑标题
-function startEdit(chatId: string, title: string) {
+function startEdit(chatId: string, title: string, event: MouseEvent) {
+  event.stopPropagation() // 阻止事件冒泡
   editingChatId.value = chatId
   editingTitle.value = title
   // 等待 DOM 更新后聚焦输入框
   nextTick(() => {
-    titleInput.value?.focus()
+    if (titleInput.value?.$el) {
+      const input = titleInput.value.$el.querySelector('input')
+      input?.focus()
+    }
     // 添加点击事件监听器
     document.addEventListener('click', handleClickOutside)
   })
 }
 
-// 处理点击外部事件
-function handleClickOutside(event: MouseEvent) {
-  const target = event.target as HTMLElement
-  // 如果点击的不是输入框和编辑按钮，则取消编辑
-  if (!target.closest('.chat-item') || target.closest('.delete-btn')) {
-    cancelEdit()
-  }
-}
-
 // 保存标题
 async function saveTitle(chatId: string) {
   if (!editingTitle.value.trim() || !userId.value) return
-  
+
   const chat = chatHistory.value.find(c => c._id === chatId)
   if (chat && chat.title !== editingTitle.value) {
     try {
-      const { data } = await useFetch(`/api/chats/${chatId}`, {
+      const response = await $fetch<ChatResponse>(`/api/chats/${chatId}`, {
         method: 'PUT',
         body: {
           userId: userId.value,
@@ -562,7 +711,7 @@ async function saveTitle(chatId: string) {
         }
       })
       
-      if (data.value?.success) {
+      if (response?.success) {
         chat.title = editingTitle.value
       }
     } catch (error) {
@@ -585,6 +734,103 @@ function cancelEdit() {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
+
+// 登录处理
+async function handleLogin() {
+  if (isLoggingIn.value) return
+  isLoggingIn.value = true
+
+  try {
+    const response = await $fetch<AuthResponse>('/api/auth/login', {
+      method: 'POST',
+      body: loginForm.value
+    })
+
+    if (response?.success) {
+      user.value = response.user
+      showLoginModal.value = false
+      // 清空表单
+      loginForm.value = { email: '', password: '' }
+      // 获取用户对话列表
+      await fetchChats()
+    } else {
+      throw new Error(response?.error || '登录失败')
+    }
+  } catch (error) {
+    console.error('登录失败:', error)
+    // TODO: 显示错误提示
+  } finally {
+    isLoggingIn.value = false
+  }
+}
+
+// 注册处理
+async function handleRegister() {
+  if (isRegistering.value) return
+  if (registerForm.value.password !== registerForm.value.confirmPassword) {
+    // TODO: 显示密码不匹配提示
+    return
+  }
+
+  isRegistering.value = true
+
+  // try {
+  //   const { data } = await $fetch('/api/auth/register', {
+  //     method: 'POST',
+  //     body: {
+  //       email: registerForm.value.email,
+  //       password: registerForm.value.password
+  //     }
+  //   })
+
+  //   if (data.value?.success) {
+  //     user.value = data.value.user
+  //     showRegisterModal.value = false
+  //     // 清空表单
+  //     registerForm.value = { email: '', password: '', confirmPassword: '' }
+  //     // 获取用户对话列表
+  //     await fetchChats()
+  //   } else {
+  //     throw new Error(data.value?.error || '注册失败')
+  //   }
+  // } catch (error) {
+  //   console.error('注册失败:', error)
+  //   // TODO: 显示错误提示
+  // } finally {
+  //   isRegistering.value = false
+  // }
+}
+
+// 退出登录
+async function handleLogout() {
+  // try {
+  //   const { data } = await $fetch('/api/auth/logout', {
+  //     method: 'POST'
+  //   })
+
+  //   if (data.value?.success) {
+  //     user.value = null
+  //     chatHistory.value = []
+  //     currentChatId.value = null
+  //   }
+  // } catch (error) {
+  //   console.error('退出失败:', error)
+  // }
+}
+
+// 检查登录状态
+async function checkAuth() {
+  // try {
+  //   const { data } = await $fetch('/api/auth/check')
+  //   if (data.value?.success) {
+  //     user.value = data.value.user
+  //     // 获取用户对话列表
+  //     await fetchChats()
+  //   }
+  // } catch (error) {
+  //   console.error('检查登录状态失败:', error)
+  // }
+}
 </script>
 
 <style>
@@ -597,6 +843,7 @@ onUnmounted(() => {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -608,9 +855,11 @@ onUnmounted(() => {
   0% {
     transform: translateX(0);
   }
+
   50% {
     transform: translateX(10px);
   }
+
   100% {
     transform: translateX(0);
   }
@@ -655,8 +904,15 @@ onUnmounted(() => {
 }
 
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
 }
 
 /* 加载动画 */
@@ -679,7 +935,14 @@ onUnmounted(() => {
 }
 
 @keyframes loading {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
-</style> 
+</style>
