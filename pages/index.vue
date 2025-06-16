@@ -498,7 +498,28 @@ watch(() => currentChat.value?.messages.find(m => m.isTyping)?.displayContent, (
 })
 
 async function sendMessage() {
-  if (!newMessage.value?.trim() || !currentChatId.value || isLoading.value || !user.value?._id) return
+  if (!newMessage.value?.trim() || isLoading.value || !user.value?._id) return
+
+  // 如果没有当前对话，自动创建一个新对话
+  if (!currentChatId.value) {
+    try {
+      const response = await $fetch<ChatResponse>('/api/chats/create', {
+        method: 'POST',
+        body: { userId: user.value._id }
+      })
+      
+      if (response?.success && response?.data) {
+        const newChat = response.data
+        chatHistory.value.unshift(newChat)
+        currentChatId.value = newChat._id
+      } else {
+        throw new Error('创建对话失败')
+      }
+    } catch (error) {
+      console.error('创建对话失败:', error)
+      return
+    }
+  }
 
   const userMessage: Message = {
     id: Date.now().toString(),
@@ -556,8 +577,19 @@ async function sendMessage() {
         eventSource.close()
         isLoading.value = false
         // 如果是第一条消息，更新对话标题
-        if (currentChat && currentChat.messages.length === 2) {
-          currentChat.title = userMessage.content.slice(0, 20) + (userMessage.content.length > 20 ? '...' : '')
+        if (currentChat && currentChat.messages.length === 2 && user.value?._id) {
+          const title = userMessage.content.slice(0, 20) + (userMessage.content.length > 20 ? '...' : '')
+          currentChat.title = title
+          // 更新标题到数据库
+          $fetch<ChatResponse>(`/api/chats/${currentChat._id}`, {
+            method: 'PUT',
+            body: {
+              userId: user.value._id,
+              title
+            }
+          }).catch(error => {
+            console.error('更新标题失败:', error)
+          })
         }
         // 完成打字效果
         if (aiMessage) {
