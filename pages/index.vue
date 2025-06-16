@@ -83,7 +83,7 @@
         </template>
 
         <template #body>
-          <form class="space-y-4 px-3 py-2" @submit.prevent="handleLogin">
+          <UForm class="space-y-4 px-3 py-2" :schema="loginSchema" :state="loginForm" @submit.prevent="handleLogin">
             <UFormField label="邮箱" class="space-y-1">
               <UInput 
                 v-model="loginForm.email" 
@@ -108,22 +108,26 @@
                 }"
               />
             </UFormField>
-          </form>
+            <div class="flex items-center justify-end w-full gap-4 mt-6">
+              <UButton 
+                color="neutral" 
+                variant="soft"
+                class="px-4 py-1.5"
+                @click="showLoginModal = false"
+              >
+                取消
+              </UButton>
+              <UButton 
+                type="submit" 
+                color="primary" 
+                :loading="isLoggingIn"
+                class="px-4 py-1.5 text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors duration-200"
+              >
+                登录
+              </UButton>
+            </div>
+          </UForm>
         </template>
-
-        <template #footer>
-          <div class="flex items-center justify-end w-full gap-3 px-3 py-2">
-            <UButton 
-              type="submit" 
-              color="primary" 
-              :loading="isLoggingIn"
-              class="px-4 py-1.5 text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors duration-200"
-            >
-              登录
-            </UButton>
-          </div>
-        </template>
-      
     </UModal>
 
     <!-- 注册模态框 -->
@@ -138,10 +142,21 @@
             <UButton color="primary" variant="ghost" icon="i-heroicons-x-mark" @click="showRegisterModal = false" />
           </div>
         </template>
-
         <template #body>
-          <form class="space-y-4 px-3 py-2" @submit.prevent="handleRegister">
-            <UFormField label="邮箱" class="space-y-1">
+          <UForm class="space-y-4 px-3 py-2" :schema="registerSchema" :state="registerForm" @submit.prevent="handleRegister">
+            <UFormField label="用户名" name="username" class="space-y-1">
+              <UInput 
+                v-model="registerForm.username" 
+                type="text" 
+                placeholder="请输入用户名" 
+                required 
+                class="w-full"
+                :ui="{ 
+                  base: 'relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:ring-inset dark:focus:ring-inset dark:border-gray-700 dark:text-gray-400 dark:bg-gray-800 sm:text-sm sm:leading-6'
+                }"
+              />
+            </UFormField>
+            <UFormField label="邮箱" name="email" class="space-y-1">
               <UInput 
                 v-model="registerForm.email" 
                 type="email" 
@@ -153,7 +168,7 @@
                 }"
               />
             </UFormField>
-            <UFormField label="密码" class="space-y-1">
+            <UFormField label="密码" name="password" class="space-y-1">
               <UInput 
                 v-model="registerForm.password" 
                 type="password" 
@@ -165,7 +180,7 @@
                 }"
               />
             </UFormField>
-            <UFormField label="确认密码" class="space-y-1">
+            <UFormField label="确认密码" name="confirmPassword" class="space-y-1">
               <UInput 
                 v-model="registerForm.confirmPassword" 
                 type="password" 
@@ -177,22 +192,26 @@
                 }"
               />
             </UFormField>
-          </form>
-        </template>
-
-        <template #footer>
-          <div class="flex items-center justify-end w-full gap-3 px-3 py-2">
-            <UButton 
-              type="submit" 
-              color="primary" 
-              :loading="isRegistering"
-              class="px-4 py-1.5 text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors duration-200"
-            >
-              注册
-            </UButton>
-          </div>
-        </template>
-      
+            <div class="flex items-center justify-end w-full gap-4 mt-6">
+              <UButton 
+                color="neutral" 
+                variant="soft"
+                class="px-4 py-1.5"
+                @click="showRegisterModal = false"
+              >
+                取消
+              </UButton>
+              <UButton 
+                type="submit" 
+                color="primary" 
+                :loading="isRegistering"
+                class="px-4 py-1.5 text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors duration-200"
+              >
+                注册
+              </UButton>
+            </div>
+          </UForm>
+        </template>    
     </UModal>
 
     <!-- 主对话区域 -->
@@ -268,7 +287,7 @@
 </template>
 
 <script setup lang="ts">
-import { v4 as uuidv4 } from 'uuid'
+import * as v from 'valibot'
 
 interface Message {
   id: string
@@ -302,25 +321,14 @@ interface ChatsResponse {
 }
 
 interface User {
-  id: string
+  _id: string
   email: string
   avatar?: string
 }
 
-interface LoginForm {
-  email: string
-  password: string
-}
-
-interface RegisterForm {
-  email: string
-  password: string
-  confirmPassword: string
-}
-
 interface AuthResponse {
   success: boolean
-  user: User
+  data?: User
   error?: string
 }
 
@@ -331,9 +339,6 @@ const isLoading = ref(false)
 const messageInput = ref<HTMLInputElement | null>(null)
 const chatContainer = ref<HTMLElement | null>(null)
 
-// 从 localStorage 获取或生成新的 userId
-const userId = ref('')
-
 // 用户相关
 const user = ref<User | null>(null)
 const showLoginModal = ref(false)
@@ -341,30 +346,43 @@ const showRegisterModal = ref(false)
 const isLoggingIn = ref(false)
 const isRegistering = ref(false)
 
-const loginForm = ref<LoginForm>({
+const loginForm = reactive({
   email: '',
   password: ''
 })
 
-const registerForm = ref<RegisterForm>({
+const registerForm = reactive({
+  username: '',
   email: '',
   password: '',
   confirmPassword: ''
 })
 
+// 表单验证规则
+const loginSchema = v.object({
+  email: v.pipe(v.string(), v.email('请输入有效的邮箱地址')),
+  password: v.pipe(v.string(), v.minLength(8, '密码长度不能少于8位'))
+})
+
+const registerSchema = v.object({
+  username: v.pipe(v.string(), v.minLength(2, '用户名长度不能少于2位')),
+  email: v.pipe(v.string(), v.email('请输入有效的邮箱地址')),
+  password: v.pipe(v.string(), v.minLength(8, '密码长度不能少于8位')),
+  confirmPassword: v.pipe(
+    v.string(),
+    v.minLength(8, '密码长度不能少于8位'),
+    v.custom((value) => {
+      if (value !== registerForm.password) {
+        return false
+      }
+      return true
+    }, '两次输入的密码不一致')
+  )
+})
+
 // 确保 userId 被保存到 localStorage
 onMounted(async () => {
   if (import.meta.client) {
-    const storedUserId = localStorage.getItem('userId')
-    if (storedUserId) {
-      userId.value = storedUserId
-    } else {
-      const newUserId = uuidv4().replace(/-/g, '')
-      userId.value = newUserId
-      localStorage.setItem('userId', newUserId)
-    }
-    // 等待 userId 设置完成
-    await nextTick()
     // 获取对话列表
     await fetchChats()
     // 聚焦到输入框
@@ -379,13 +397,13 @@ const currentChat = computed(() => {
 
 // 获取对话列表
 async function fetchChats() {
-  if (!userId.value) {
-    console.log('No userId available, skipping fetchChats') // 添加日志
+  if (!user.value?._id) {
+    console.log('No user available, skipping fetchChats')
     return
   }
   try {
     const response = await $fetch<ChatsResponse>('/api/chats', {
-      query: { userId: userId.value }
+      query: { userId: user.value._id }
     })
     if (response?.success && response?.data) {
       chatHistory.value = response.data
@@ -401,11 +419,11 @@ async function fetchChats() {
 
 // 创建新对话
 async function startNewChat() {
-  if (!userId.value) return
+  if (!user.value?._id) return
   try {
     const response = await $fetch<ChatResponse>('/api/chats/create', {
       method: 'POST',
-      body: { userId: userId.value }
+      body: { userId: user.value._id }
     })
     
     if (response?.success && response?.data) {
@@ -433,12 +451,12 @@ function selectChat(chatId: string) {
 
 // 更新对话
 async function updateChat(chatId: string, messages: Message[]) {
-  if (!userId.value) return false
+  if (!user.value?._id) return false
   try {
     const response = await $fetch<ChatResponse>(`/api/chats/${chatId}`, {
       method: 'PUT',
       body: {
-        userId: userId.value,
+        userId: user.value._id,
         messages
       }
     })
@@ -480,7 +498,7 @@ watch(() => currentChat.value?.messages.find(m => m.isTyping)?.displayContent, (
 })
 
 async function sendMessage() {
-  if (!newMessage.value?.trim() || !currentChatId.value || isLoading.value || !userId.value) return
+  if (!newMessage.value?.trim() || !currentChatId.value || isLoading.value || !user.value?._id) return
 
   const userMessage: Message = {
     id: Date.now().toString(),
@@ -632,11 +650,11 @@ function adjustTextareaHeight(event: Event) {
 
 // 删除对话
 async function deleteChat(chatId: string) {
-  if (!userId.value) return
+  if (!user.value?._id) return
   try {
     const response = await $fetch<ChatResponse>(`/api/chats/${chatId}`, {
       method: 'DELETE',
-      body: { userId: userId.value }
+      body: { userId: user.value._id }
     })
     
     if (response?.success) {
@@ -698,7 +716,7 @@ function startEdit(chatId: string, title: string, event: MouseEvent) {
 
 // 保存标题
 async function saveTitle(chatId: string) {
-  if (!editingTitle.value.trim() || !userId.value) return
+  if (!editingTitle.value.trim() || !user.value?._id) return
 
   const chat = chatHistory.value.find(c => c._id === chatId)
   if (chat && chat.title !== editingTitle.value) {
@@ -706,7 +724,7 @@ async function saveTitle(chatId: string) {
       const response = await $fetch<ChatResponse>(`/api/chats/${chatId}`, {
         method: 'PUT',
         body: {
-          userId: userId.value,
+          userId: user.value._id,
           title: editingTitle.value
         }
       })
@@ -743,14 +761,16 @@ async function handleLogin() {
   try {
     const response = await $fetch<AuthResponse>('/api/auth/login', {
       method: 'POST',
-      body: loginForm.value
+      body: loginForm
     })
 
-    if (response?.success) {
-      user.value = response.user
+    if (response?.success && response.data) {
+      user.value = response.data
       showLoginModal.value = false
       // 清空表单
-      loginForm.value = { email: '', password: '' }
+      loginForm.email = ''
+      loginForm.password = ''
+
       // 获取用户对话列表
       await fetchChats()
     } else {
@@ -767,69 +787,68 @@ async function handleLogin() {
 // 注册处理
 async function handleRegister() {
   if (isRegistering.value) return
-  if (registerForm.value.password !== registerForm.value.confirmPassword) {
-    // TODO: 显示密码不匹配提示
-    return
-  }
-
   isRegistering.value = true
 
-  // try {
-  //   const { data } = await $fetch('/api/auth/register', {
-  //     method: 'POST',
-  //     body: {
-  //       email: registerForm.value.email,
-  //       password: registerForm.value.password
-  //     }
-  //   })
+  try {
+    const response = await $fetch<AuthResponse>('/api/auth/register', {
+      method: 'POST',
+      body: {
+        username: registerForm.username,
+        email: registerForm.email,
+        password: registerForm.password
+      }
+    })
 
-  //   if (data.value?.success) {
-  //     user.value = data.value.user
-  //     showRegisterModal.value = false
-  //     // 清空表单
-  //     registerForm.value = { email: '', password: '', confirmPassword: '' }
-  //     // 获取用户对话列表
-  //     await fetchChats()
-  //   } else {
-  //     throw new Error(data.value?.error || '注册失败')
-  //   }
-  // } catch (error) {
-  //   console.error('注册失败:', error)
-  //   // TODO: 显示错误提示
-  // } finally {
-  //   isRegistering.value = false
-  // }
+    if (response?.success && response.data) {
+      user.value = response.data
+      showRegisterModal.value = false
+      // 清空表单
+      registerForm.username = ''
+      registerForm.email = ''
+      registerForm.password = ''
+      registerForm.confirmPassword = ''
+      // 获取用户对话列表
+      await fetchChats()
+    } else {
+      throw new Error(response?.error || '注册失败')
+    }
+  } catch (error) {
+    console.error('注册失败:', error)
+    // TODO: 显示错误提示
+  } finally {
+    isRegistering.value = false
+  }
 }
 
 // 退出登录
 async function handleLogout() {
-  // try {
-  //   const { data } = await $fetch('/api/auth/logout', {
-  //     method: 'POST'
-  //   })
+  try {
+    const response = await $fetch<AuthResponse>('/api/auth/logout', {
+      method: 'POST'
+    })
 
-  //   if (data.value?.success) {
-  //     user.value = null
-  //     chatHistory.value = []
-  //     currentChatId.value = null
-  //   }
-  // } catch (error) {
-  //   console.error('退出失败:', error)
-  // }
+    if (response?.success) {
+      user.value = null
+      chatHistory.value = []
+      currentChatId.value = null
+    }
+  } catch (error) {
+    console.error('退出失败:', error)
+  }
 }
 
 // 检查登录状态
 async function checkAuth() {
-  // try {
-  //   const { data } = await $fetch('/api/auth/check')
-  //   if (data.value?.success) {
-  //     user.value = data.value.user
-  //     // 获取用户对话列表
-  //     await fetchChats()
-  //   }
-  // } catch (error) {
-  //   console.error('检查登录状态失败:', error)
-  // }
+  try {
+    const response = await $fetch<AuthResponse>('/api/auth/check')
+    if (response?.success && response.data) {
+      user.value = response.data
+      // 获取用户对话列表
+      await fetchChats()
+    }
+  } catch (error) {
+    console.error('检查登录状态失败:', error)
+  }
 }
 </script>
 
