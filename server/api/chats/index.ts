@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const chats = await Chat.find({ userId }).sort({ updatedAt: -1 })
+    const chats = await Chat.find({ userId }).sort({ createdAt: -1 })
     return { success: true, data: chats }
   } catch (error) {
     console.error('Error fetching chats:', error)
