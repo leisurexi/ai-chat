@@ -1,7 +1,31 @@
 <template>
   <div class="flex h-screen bg-gray-50">
+    <!-- 移动端菜单按钮 -->
+    <UButton
+      v-if="!isSidebarOpen"
+      color="primary"
+      variant="ghost"
+      class="fixed top-4 left-4 z-50 md:hidden"
+      @click="isSidebarOpen = true"
+    >
+      <UIcon name="i-heroicons-bars-3" class="text-xl" />
+    </UButton>
+
     <!-- 左侧边栏 -->
-    <div class="w-72 border-r border-gray-200 bg-white p-4 shadow-sm flex flex-col h-full">
+    <div
+      class="fixed md:static inset-y-0 left-0 w-72 border-r border-gray-200 bg-white p-4 shadow-sm flex flex-col h-full transform transition-transform duration-300 ease-in-out z-40"
+      :class="{ '-translate-x-full': !isSidebarOpen, 'translate-x-0': isSidebarOpen }"
+    >
+      <div class="flex items-center justify-between mb-6 md:hidden">
+        <h1 class="text-xl font-semibold text-gray-900">AI Chat</h1>
+        <UButton
+          color="primary"
+          variant="ghost"
+          @click="isSidebarOpen = false"
+        >
+          <UIcon name="i-heroicons-x-mark" class="text-xl" />
+        </UButton>
+      </div>
       <div class="flex-1">
         <UButton block color="primary" variant="solid" class="mb-6 transition-all hover:shadow-md"
           @click="startNewChat">
@@ -215,9 +239,9 @@
     </UModal>
 
     <!-- 主对话区域 -->
-    <div class="flex-1 flex flex-col bg-white">
+    <div class="flex-1 flex flex-col bg-white w-full">
       <!-- 对话内容 -->
-      <div ref="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-6">
+      <div ref="chatContainer" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
         <template v-if="currentChat">
           <div v-for="message in currentChat.messages" :key="message.id" class="flex gap-4 animate-fade-in"
             :class="{ 'justify-end': message.role === 'user' }">
@@ -266,19 +290,34 @@
       </div>
 
       <!-- 输入区域 -->
-      <div class="border-t border-gray-200 bg-white p-4 shadow-lg">
-        <form class="flex gap-3" @submit.prevent>
-          <UTextarea v-model="newMessage" placeholder="输入消息... (Enter 发送，Shift + Enter 换行)"
-            class="flex-1 resize-none min-h-[44px] max-h-[200px] overflow-y-auto" :disabled="isLoading" :rows="1"
-            :auto-rows="true" :ui="{
+      <div class="border-t border-gray-200 bg-white p-3 md:p-4 shadow-lg">
+        <form class="flex gap-2 md:gap-3" @submit.prevent>
+          <UTextarea
+            v-model="newMessage"
+            placeholder="输入消息... (Enter 发送，Shift + Enter 换行)"
+            class="flex-1 resize-none min-h-[44px] max-h-[200px] overflow-y-auto text-sm md:text-base"
+            :disabled="isLoading"
+            :rows="1"
+            :auto-rows="true"
+            :ui="{
               base: 'relative block w-full disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:ring-inset dark:focus:ring-inset dark:border-gray-700 dark:text-gray-400 dark:bg-gray-800 sm:text-sm sm:leading-6'
-            }" @keydown.enter.prevent="handleEnterKey" @input="adjustTextareaHeight" />
-          <UButton type="button" color="primary" :loading="isLoading" :disabled="!newMessage.trim()" size="lg"
-            class="transition-all hover:shadow-md" @click="sendMessage">
+            }"
+            @keydown.enter.prevent="handleEnterKey"
+            @input="adjustTextareaHeight"
+          />
+          <UButton
+            type="button"
+            color="primary"
+            :loading="isLoading"
+            :disabled="!newMessage.trim()"
+            size="lg"
+            class="transition-all hover:shadow-md px-3 md:px-4"
+            @click="sendMessage"
+          >
             <template #leading>
               <UIcon name="i-heroicons-paper-airplane" class="text-lg" />
             </template>
-            发送
+            <span class="hidden md:inline">发送</span>
           </UButton>
         </form>
       </div>
@@ -288,6 +327,7 @@
 
 <script setup lang="ts">
 import * as v from 'valibot'
+import { useRoute } from 'vue-router'
 
 interface Message {
   id: string
@@ -882,6 +922,33 @@ async function checkAuth() {
     console.error('检查登录状态失败:', error)
   }
 }
+
+// 侧边栏状态
+const isSidebarOpen = ref(false)
+const route = useRoute()
+
+// 监听路由变化，在移动端自动关闭侧边栏
+watch(() => route.fullPath, () => {
+  if (window.innerWidth < 768) {
+    isSidebarOpen.value = false
+  }
+})
+
+// 监听窗口大小变化
+onMounted(() => {
+  const handleResize = () => {
+    if (window.innerWidth >= 768) {
+      isSidebarOpen.value = true
+    }
+  }
+  
+  window.addEventListener('resize', handleResize)
+  handleResize() // 初始化时执行一次
+  
+  onUnmounted(() => {
+    window.removeEventListener('resize', handleResize)
+  })
+})
 </script>
 
 <style>
@@ -994,6 +1061,21 @@ async function checkAuth() {
 
   50% {
     opacity: 1;
+  }
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .prose {
+    font-size: 0.875rem;
+  }
+  
+  .chat-item {
+    padding: 0.75rem;
+  }
+  
+  .UButton {
+    padding: 0.5rem;
   }
 }
 </style>
