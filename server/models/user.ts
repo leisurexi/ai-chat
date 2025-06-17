@@ -30,7 +30,6 @@ const userSchema = new Schema({
 })
 
 // 创建索引
-userSchema.index({ email: 1 })
 userSchema.index({ username: 1 })
 
 export const User = model('User', userSchema) 
